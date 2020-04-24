@@ -1,0 +1,87 @@
+---
+- hosts: all
+  tasks:
+    - name: Insert /etc/hosts
+      blockinfile:
+        path: /etc/hosts
+        block: |
+          192.168.0.103 node-1.devops.com node-1
+          192.168.0.104 node-2.devops.com node-2
+          192.168.0.105 node-3.devops.com node-3
+  #  - name: upgrade all packages
+  #    yum:
+  #      name: '*'
+  #      state: latest
+    - name: Disable SELinux
+      selinux:
+        state: disabled
+    - name: Install the wget
+      yum: name=wget state=latest
+    - name: Stop and disable firewalld.
+      service: name=firewalld state=stopped enabled=False
+    - name: stop neywork-manager and disable
+      service: name=NetworkManager state=stopped enabled=no
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: swap
+        fstype: swap
+        state: absent
+    - name: Disable swap
+      command: swapoff -a
+    - name: modprobe br_netfilter activate
+      command: modprobe br_netfilter
+    - name: to activate bridge
+      command: echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    - name: Insert /etc/sysctl.conf
+      blockinfile:
+        path: /etc/sysctl.conf
+        block: |
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.bridge.bridge-nf-call-iptables = 1
+    - name: Install NTP
+      yum: name=ntp,ntpdate state=present update_cache=yes
+    - name: Make sure NTP is started up
+      service: name=ntpd state=started enabled=yes
+    - name: restart ntp
+      service: name=ntpd state=restarted
+    - name: create file
+      file:
+        path: /etc/yum.repos.d/kubernetes.repo
+        state: touch
+    - name: create repo1
+      blockinfile:
+        path: /etc/yum.repos.d/kubernetes.repo
+        block: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=http://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+          enabled=1
+          gpgcheck=0
+        
+   # - name: install
+   #  yum: name=httpd state=latest
+   # - name: start the serivce
+   #   systemd: name=httpd state=started
+   # - name: Enable service httpd, and not touch the state
+   #  systemd: name=httpd enabled=yes
+    - name: install kubernet
+      command: yum -y install docker kubeadm kubectl kubelet
+    - name: Enable docker
+      systemd: name=docker enabled=yes
+    - name: start docker
+      command: systemctl start docker 
+    - name: Enable kubelet
+      systemd: name=kubelet enabled=yes
+    - name: start the serivce
+      command: systemctl start kubelet
+    - name: install some components
+      command: yum install device-mapper-persistent-data lvm2 wget telnet net-tools yum-utils  yum-plugin-ovl -y
+    - name: echo 1 > /proc/sys/net/ipv4/ip_forward 
+      command: echo 1 > /proc/sys/net/ipv4/ip_forward 
+ 
+      
+    
+
+
+
+
