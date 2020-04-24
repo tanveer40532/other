@@ -1,0 +1,6 @@
+---
+- hosts: all
+  tasks:
+    - name: all
+      command: echo " - - - " > /sys/class/scsi_host/host2/scan
+
