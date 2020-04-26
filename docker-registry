@@ -1,0 +1,57 @@
+local-registry.text
+--------------------------------------
+mkdir certs
+cd certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=192.168.0.48"
+------------------------------------------------------------------------------------------------------------
+/etc/docker/certs.d/node-1.devops.com:5000/ca.crt
+--------------------------------------------------------------------
+[root@node-1 ~]# cat /etc/docker/daemon.json
+{
+  "insecure-registries": ["192.168.43.20:443","node-1.devops.com:443"]
+}
+---------------------------------------------------------------------------------
+systemctl restart docker
+---------------------------------------------------------
+docker container run -dit \
+  --restart=always \
+  --name registry \
+  -v "$(pwd)"/certs:/certs \
+  -v docker-registry:/var/lib/registry \
+  -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/tls.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/tls.key \
+  -p 443:443 \
+  registry:2
+  ----------------------------------------------------------------------------------
+  secure login
+  --------------------
+  Create a password file with one entry for the user testuser, with password testpassword:
+  -------------------------------------------
+ /etc/docker/certs.d/node-1.devops.com:443/ca.crt 
+---------------------------------------------------------------
+$ mkdir auth
+$ docker run \
+  --entrypoint htpasswd \
+  registry:2 -Bbn testuser testpassword > auth/htpasswd
+Stop the registry.
+--------------------------------------------------------------------------------------------
+$ docker container stop registry
+Start the registry with basic authentication.
+  
+ --------------------------------------------------------------------------------- 
+  docker container run -dit \
+  -p 5000:5000 \
+  -p 443:443  \
+  --restart=always \
+  --name registry \
+  -v "$(pwd)"/auth:/auth \
+  -e "REGISTRY_AUTH=htpasswd" \
+  -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+  -v "$(pwd)"/certs:/certs \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/tls.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/tls.key \
+  registry:2
+  -----------------------------------------------------------------------------------------
